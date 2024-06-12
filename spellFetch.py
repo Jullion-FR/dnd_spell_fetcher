@@ -1,6 +1,7 @@
 import requests
 import unicodedata
 import webbrowser
+from string import punctuation
 
 base_link = "https://www.aidedd.org/dnd/sorts.php?"
 
@@ -10,43 +11,65 @@ def remove_accents(input_str):
 
 def full_sub_link(response, semi_complete_link):
     index = response.text.find(semi_complete_link)
+    if index == -1:
+        return None
     general_response_area = response.text[index:index+len(semi_complete_link)+25]
     spell_link = general_response_area[0:general_response_area.find('\'')]
     return spell_link
 
 def get_vf_link(cleaned_spell):
-    link = base_link + "vf=" + cleaned_spell
-    return link
+    return base_link + "vf=" + cleaned_spell
 
 def get_vo_link(cleaned_spell):
-    link = base_link + "vo="
-    return full_sub_link(requests.get(get_vf_link(cleaned_spell)),link)
-    
+    vf_response = requests.get(get_vf_link(cleaned_spell))
+    return full_sub_link(vf_response, base_link + "vo=")
+
 def clean_spell(spell):
-    return remove_accents(str(spell).replace(' ', '-'))
+    spell = remove_accents(str(spell).replace(' ', '-'))
+    while (spell[-1] in punctuation):
+        spell = spell[0:-1]
+    return spell
 
 def fetch_vo_spell_from_vf(sort):
-    return get_vo_link(clean_spell(sort))
+    cleaned_sort = clean_spell(sort)
+    return get_vo_link(cleaned_sort)
 
 def fetch_vf_spell(sort):
-    return get_vf_link(clean_spell(sort))
+    cleaned_sort = clean_spell(sort)
+    return get_vf_link(cleaned_sort)
 
 def open_link_in_browser(url):
-    return webbrowser.open(url,2)
+    return webbrowser.open(url, 2)
 
-# Exemple d'utilisation
-sort = "boule de feu"
-vf_link = fetch_vf_spell(sort)
-print("Lien VF :", vf_link)
+def process_spells_from_file(file_path, open_vo = False):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        spells = [line.strip() for line in file.readlines()]
+    
+    failed_spells = []
 
-vo_link = fetch_vo_spell_from_vf(sort)
-print("Lien VO :", vo_link)
+    for spell in spells:
+        try:
+            if open_vo: 
+                link = fetch_vo_spell_from_vf(spell)
+                print(f"Lien VO pour '{spell}': {link}")
+            else: 
+                link = fetch_vf_spell(spell)
+                print(f"Lien VF pour '{spell}': {link}")
 
-# Ouvrir le lien VO dans le navigateur
-open_link_in_browser(vo_link)
+            if link:
+                open_link_in_browser(link)
+            else:
+                failed_spells.append(spell)
+        except Exception as e:
+            print(f"Erreur avec le sort '{spell}': {e}")
+            failed_spells.append(spell)
+
+    if failed_spells:
+        print("Sorts pour lesquels les liens n'ont pas pu être ouverts :")
+        for failed_spell in failed_spells:
+            print(f"- {failed_spell}")
+            
+    file.close()
 
 
-
-"""TODO mettre la liste dans un fichier, puis le lire avec ce script, ce qui ouvre la fenêtre de tout les sorts
-+ detecter si pb syntaxe
-"""
+process_spells_from_file('sorts.txt')
