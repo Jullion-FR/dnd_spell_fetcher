@@ -25,9 +25,13 @@ def get_vo_link(cleaned_spell):
     return full_sub_link(vf_response, base_link + "vo=")
 
 def clean_spell(spell):
-    spell = remove_accents(str(spell).replace(' ', '-'))
+    spell = remove_accents(str(spell).replace(' ', '-').replace('\'','-'))
     while (spell[-1] in punctuation):
         spell = spell[0:-1]
+    
+    while (spell[0] in punctuation):
+        spell = spell[1:-1]+spell[-1]
+        
     return spell
 
 def fetch_vo_spell_from_vf(sort):
